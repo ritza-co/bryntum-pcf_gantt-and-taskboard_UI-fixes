@@ -1,12 +1,22 @@
+# Bryntum Gantt and Task Board PCF controls, with the Power Apps custom page fixes
+
+This repo accompanies [bryntum-suite#14486](https://github.com/bryntum/bryntum-suite/issues/14486) (floating UI mispositioned and mis-stacked when Bryntum runs in a Power Apps custom page). It contains the two Power Apps component framework (PCF) controls used to find the root causes and the fixes that make both problems go away:
+
+- the Gantt context menu opening at the top-left corner: the host wrapper makes `globalThis` unstable, fixed with a webpack binding (`bryntum-gantt-pcf/webpack.config.js`, `BryntumGantt/realGlobal.js`);
+- the Task Board editor greyed out under its own modal mask: the host's page CSS forces `z-index: 0 !important` on `[aria-modal]`, fixed with one CSS rule (`BryntumGantt/css/BryntumGanttComponent.css`, `BryntumTaskboard/css/BryntumTaskboardComponent.css`).
+
+Both are explained under "How the component works" below. Everything else here is the packaging of the Gantt as an importable solution.
+
 # Bryntum Gantt (trial) as an importable Power Platform solution
 
 A Bryntum Gantt 7.3.7 trial build wrapped as a Power Apps component framework (PCF) code component, plus the two Dataverse tables it reads and writes, packaged as a solution zip that an admin can import without any developer tooling.
 
 ```
-code/
+.
 ├── bryntum-gantt-pcf/      PCF project (React, Bryntum Gantt trial, Dataverse Web API CRUD)
+├── bryntum-taskboard-pcf/  PCF test control (React, Bryntum Task Board trial), see below
 ├── solution/               Solution project: `dotnet build -c Release` → managed + unmanaged zips
-├── scripts/                Provision tables, push the control, export/import, sync solution source
+├── scripts/                Provision tables, push the controls, export/import, sync solution source
 ├── sample-data/            Sample project as JSON and CSV
 └── dist/                   Exported zips (created by scripts/export-solution.sh; not in git)
 ```
@@ -24,7 +34,6 @@ Known Power Apps quirks handled in this project:
 - **Promise replacement.** Canvas apps and custom pages replace the page's global `Promise` with a WinJS implementation. Promises Bryntum creates with `new Promise` then fail inside the task editor (`this._state.then is not a function`, see the forum thread t=35643). `webpack.config.js` binds the `Promise` identifier in the bundle to the browser's native constructor; `featureconfig.json` turns that custom config on. `pcfconfig.json` also targets current browsers so Babel leaves Bryntum's `async` functions native. Both are needed.
 - **`globalThis` replacement.** Custom pages and canvas apps evaluate the bundle inside a wrapper scope (DevTools shows it as `wrapped.powerapps/appruntime/...`). Inside it, `window` and `self` are a Power Apps container object, and `globalThis` is the real window while the bundle loads but the container afterwards; globals the bundle adds during load are moved into the container. Bryntum detects the viewport with `constrainTo === globalThis` (`Rectangle.alignTo`) and its context menus capture `globalThis` in their config at load, so the comparison later fails, `DomHelper.getStyleValue(window)` throws `Cannot read properties of undefined (reading 'defaultView')`, and the menu is left at the top-left corner (bryntum-suite issue 14486). `webpack.config.js` also binds `globalThis` in the bundle to one stable object: `BryntumGantt/realGlobal.js` picks `window` when it is a usable global-like object (the container in Power Apps, the real window elsewhere), falling back to the window reached through the DOM. A runtime check of the `window.globalThis` property cannot catch this, because the host never changes that property.
 - **Modal popups under their mask.** Power Apps page CSS forces `z-index: 0 !important` on any element with an `aria-modal` attribute, which Bryntum's modal popups carry and their modal mask does not. One rule in `BryntumGantt/css/BryntumGanttComponent.css` (`.b-float-root > .b-floating[aria-modal]`) restores Bryntum's own z-index so mask, popup and pickers stack by DOM order again. No other z-index overrides are needed.
-- **z-index flattening.** Power Apps flattens Bryntum's dynamic z-index, so `BryntumGantt/css/BryntumGanttComponent.css` pins the task editor, its pickers and the delete confirmation dialog in a fixed order.
 
 ## What you need
 
@@ -58,7 +67,7 @@ npm run build:release  # production bundle in out/controls/BryntumGantt
 npm start              # Microsoft test harness with the read-only sample (development build)
 ```
 
-The harness pops up two alerts saying retrieving records "is not yet supported"; dismiss them, the component then shows the sample. For a mocked Web API use PCF Workbench (`npx @pcfworkbench/cli start` from `code/`), which serves `bryntum-gantt-pcf/data.json`.
+The harness pops up two alerts saying retrieving records "is not yet supported"; dismiss them, the component then shows the sample. For a mocked Web API use PCF Workbench (`npx @pcfworkbench/cli start` from the repo root), which serves `bryntum-gantt-pcf/data.json`.
 
 To try a change against real Dataverse without rebuilding the zips, push the control straight into a build environment that already has the solution:
 
@@ -82,7 +91,7 @@ node scripts/provision-dataverse.mjs --url https://<build-org>.crm4.dynamics.com
 bash scripts/push-pcf.sh https://<build-org>.crm4.dynamics.com
 
 # 3. Export managed + unmanaged zips to dist/ (also usable as the deliverable directly)
-bash scripts/export-solution.sh https://<build-org>.crm4.dynamics.com 1.0.0.2
+bash scripts/export-solution.sh https://<build-org>.crm4.dynamics.com 1.0.0.3
 
 # 4. Pull the table definitions back into solution/src so the offline build stays in sync
 bash scripts/sync-solution-source.sh
@@ -110,7 +119,7 @@ npm run build:release
 pac pcf push --publisher-prefix bryntum --environment https://<build-org>.crm4.dynamics.com
 ```
 
-The fixes it carries are the same two as the Gantt control (see "Work on the control" above): the `globalThis` binding in `webpack.config.js` and the `.b-float-root > .b-floating[aria-modal]` rule in its CSS.
+The fixes it carries are the same two as the Gantt control (see "How the component works" above): the `globalThis` binding in `webpack.config.js` and the `.b-float-root > .b-floating[aria-modal]` rule in its CSS.
 
 ## Changing the target tables
 
