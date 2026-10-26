@@ -1,0 +1,89 @@
+/*
+ * Component-level styles. Loaded after the Bryntum CSS (see ControlManifest.Input.xml).
+ * No external fonts: the Svalbard theme falls back to the host's system font stack.
+ */
+
+/* Size from the PCF host allocation, not the browser viewport. Viewport sizing shifts
+   Bryntum's floating menus and dialogs when the app shell takes space around the page. */
+.bryntum-gantt-pcf-root {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 480px;
+    position: relative;
+    overflow: hidden;
+    /* Flex column so the Gantt fills whatever height the host gives, including hosts
+       that size the container by its min-height rather than an explicit height. */
+    display: flex;
+    flex-direction: column;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.bryntum-gantt-pcf-root > .b-gantt,
+.bryntum-gantt-pcf-root > .bryntum-gantt-pcf-loader,
+.bryntum-gantt-pcf-root > .bryntum-gantt-pcf-error {
+    box-sizing: border-box;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.bryntum-gantt-pcf-status {
+    color: #605e5c;
+    padding: 0 0.5em;
+}
+
+/*
+ * Power Apps page CSS forces `z-index: 0 !important` on any element with an `aria-modal`
+ * attribute. Bryntum's modal popups (delete confirmation, message dialogs) carry
+ * aria-modal="true" while their modal mask does not, so without this rule the mask paints
+ * over the dialog. Restoring Bryntum's own value lets mask and popup stack by DOM order again
+ * (bryntum-suite #14486, measured 26 Oct 2026).
+ */
+.b-float-root > .b-floating[aria-modal] {
+    z-index: var(--b-floating-z-index, 1) !important;
+}
+
+/* Loading and error states */
+.bryntum-gantt-pcf-loader,
+.bryntum-gantt-pcf-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #323130;
+    text-align: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.bryntum-gantt-pcf-error h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.bryntum-gantt-pcf-error p {
+    margin: 0;
+    max-width: 640px;
+}
+
+.bryntum-gantt-pcf-hint {
+    color: #605e5c;
+    font-size: 0.9em;
+}
+
+.bryntum-gantt-pcf-spinner {
+    border: 6px solid #edebe9;
+    border-radius: 50%;
+    border-top: 6px solid #0078d4;
+    width: 48px;
+    height: 48px;
+    animation: bryntum-gantt-pcf-spin 1.2s linear infinite;
+}
+
+@keyframes bryntum-gantt-pcf-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
